@@ -10,7 +10,7 @@ from math import sin, cos, radians, pi
 import glob
 
 from pyglet.window.key import LEFT, RIGHT, UP, DOWN
-from pyglet.window.mouse import LEFT as MouseLEFT
+# from pyglet.window.mouse import LEFT as MouseLEFT
 
 window = pyglet.window.Window(width=1200, height=950)
 batch = pyglet.graphics.Batch()   # pro optimalizované vyreslování objektů
@@ -80,6 +80,28 @@ class Meteor(SpaceObject):
         self.sprite.rotation += dt * self.rspeed
 
 
+class Laser(SpaceObject):
+
+    def __init__(self, img_file='img/laser.png', speed=1000):
+
+        # načtu obrázek
+        self.image = pyglet.image.load(img_file)
+        # střed otáčení dám na střed obrázku
+        self.image.anchor_x = self.image.width // 2
+        self.image.anchor_y = self.image.height
+        # z obrázku vytvořím sprite
+        self.sprite = pyglet.sprite.Sprite(self.image, batch=batch)
+        self.sprite.z = 0
+        self.direction = 0
+        self.speed = speed
+
+        self.x = ship.x
+        self.y = ship.y + 70
+
+    def tick(self, dt):
+        self.y += dt * self.speed
+
+
 class SpaceShip(SpaceObject):
 
     def __init__(self, x=None, y=None, speed=300):
@@ -133,7 +155,7 @@ class SpaceShip(SpaceObject):
         self.fireL.x = self.x - self.fire_x_dist
         self.fireR.x = self.x + self.fire_x_dist
 
-    def move(self, dt):
+    def tick(self, dt):
         if LEFT in self.keys and self.x > 0:
             self.fire_x_dist = 26
             self.fire_y_dist = 31
@@ -167,34 +189,52 @@ class SpaceShip(SpaceObject):
 
 
 class Meet():
-    roster = list()
+    meteors = list()
+    lasers = list()
 
-    def add(self, dt=None):
-        self.roster.append(Meteor())
+    def add_meteor(self, dt=None):
+        self.meteors.append(Meteor())
 
-    def move(self, dt):
-        for o in self.roster:
-            o.tick(dt)
+    def add_laser(self, dt=None):
+        self.lasers.append(Laser())
+
+    def tick(self, dt):
+        # pohnu kamenama
+        for meteor in self.meteors:
+            meteor.tick(dt)
             # vymažu ty, co nejsou vidět
-            if o.y < 0 - o.max or o.x < 0 - o.max or \
-                    o.x > window.width + o.max:
-                o.sprite.delete()
-                self.roster.remove(o)
-            distance = ((o.x - ship.x)**2 + (o.y - ship.y)**2)**0.5
-            if distance - o.min/2 - 32 <= 0:
-                self.remove = o  # schovám si ho abych ho pak vymazal
+            if meteor.y < 0 - meteor.max or meteor.x < 0 - meteor.max or \
+                    meteor.x > window.width + meteor.max:
+                meteor.sprite.delete()
+                self.meteors.remove(meteor)
+            distance = ((meteor.x - ship.x)**2 + (meteor.y - ship.y)**2)**0.5
+            if distance - meteor.min/2 - 32 <= 0:
+                self.remove = meteor  # schovám si ho abych ho pak vymazal
                 self.hit()
+                continue
+            for laser in self.lasers:
+                if laser.y >= meteor.y \
+                        and laser.x >= (meteor.x - meteor.min/3)\
+                        and laser.x <= (meteor.x + meteor.min/3):
+                    self.lasers.remove(laser)
+                    self.meteors.remove(meteor)
+        # pohnu laserama
+        for laser in self.lasers:
+            laser.tick(dt)
+            if laser.y > window.height + laser.sprite.height:
+                laser.sprite.delete()
+                self.lasers.remove(laser)
 
     def hit(self):
                 pyglet.clock.unschedule(ticktack)
-                pyglet.clock.unschedule(meet.add)
+                pyglet.clock.unschedule(meet.add_meteor)
                 pyglet.clock.schedule_once(self.renew, 3)
 
     def renew(self, dt):
         self.remove.sprite.delete()
-        self.roster.remove(self.remove)
+        self.meteors.remove(self.remove)
         pyglet.clock.schedule_interval(ticktack, 1/30)
-        pyglet.clock.schedule_interval(meet.add, 1/3)
+        pyglet.clock.schedule_interval(meet.add_meteor, 1/3)
 
 
 @window.event
@@ -206,24 +246,21 @@ def on_draw():
 
 @window.event
 def on_key_press(sym, mod):
-    ship.keys.add(sym)
+    # print(sym, mod)
+    if sym == 65507:
+        meet.add_laser()
+    else:
+        ship.keys |= {sym, }
 
 
 @window.event
 def on_key_release(sym, mod):
-    ship.keys.remove(sym)
-
-
-@window.event
-def on_mouse_press(x, y, button, mod):
-    print(x, y, button, mod)
-    if button == MouseLEFT:
-        pass
+    ship.keys -= {sym, }
 
 
 def ticktack(dt):
-    meet.move(dt)
-    ship.move(dt)
+    meet.tick(dt)
+    ship.tick(dt)
 
 
 # pozadí...
@@ -242,11 +279,11 @@ ship = SpaceShip()
 # print(ship.width)
 # print(ship.height)
 meet = Meet()
-meet.add()
-meet.add()
-meet.add()
-meet.add()
-meet.add()
+meet.add_meteor()
+meet.add_meteor()
+meet.add_meteor()
+meet.add_meteor()
+meet.add_meteor()
 pyglet.clock.schedule_interval(ticktack, 1/30)
-pyglet.clock.schedule_interval(meet.add, 10/3)
+pyglet.clock.schedule_interval(meet.add_meteor, 10/3)
 pyglet.app.run()
