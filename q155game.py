@@ -9,7 +9,7 @@ import random
 from math import sin, cos, radians, pi
 import glob
 
-from pyglet.window.key import LEFT, RIGHT, UP, DOWN, SPACE
+from pyglet.window.key import LEFT, RIGHT, UP, DOWN, LCTRL
 # from pyglet.window.mouse import LEFT as MouseLEFT
 
 window = pyglet.window.Window(width=1200, height=950)
@@ -78,7 +78,9 @@ class Meteor(SpaceObject):
         self.y += dt * self.speed * sin(pi / 2 - radians(self.direction))
         self.sprite.y = self.y
         self.sprite.rotation += dt * self.rspeed
-
+    
+    def __del__(self):
+        print('Mem free!')
 
 class Laser(SpaceObject):
 
@@ -247,7 +249,7 @@ def on_draw():
 @window.event
 def on_key_press(sym, mod):
     # print(sym, mod)
-    if sym == 65507:
+    if sym == LCTRL:
         meet.add_laser()
     else:
         ship.keys |= {sym, }
