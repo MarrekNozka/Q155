@@ -9,7 +9,7 @@ import random
 from math import sin, cos, radians, pi
 import glob
 
-from pyglet.window.key import LEFT, RIGHT, UP, DOWN
+from pyglet.window.key import LEFT, RIGHT, UP, DOWN, SPACE
 # from pyglet.window.mouse import LEFT as MouseLEFT
 
 window = pyglet.window.Window(width=1200, height=950)
